@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Music Cleanup Studio — remove static from AI music</title>
+<meta name="description" content="Remove broadband static from AI-generated music in your browser. Batch WAV/MP3, spectral cleanup, mastering, no uploads." />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230d1117'/><path d='M4 20c3 0 3-8 6-8s3 10 6 10 3-12 6-12 3 6 6 6' stroke='%2339d3a5' stroke-width='2.5' fill='none' stroke-linecap='round'/></svg>" />
+</head>
+<body>
+<noscript><div style="padding:20px;font:15px system-ui;background:#2a1414;color:#ffd9d9">
+  Music Cleanup Studio needs JavaScript. Everything runs locally in your browser — nothing is uploaded.
+</div></noscript>
+
+<!-- If styles.css / app.js are missing (e.g. only index.html was copied out of the folder),
+     say so plainly instead of rendering a broken, unstyled page. -->
+<div id="bootfail" hidden style="margin:0;padding:16px 20px;font:14px/1.5 system-ui,sans-serif;background:#2a1414;color:#ffe2e2;border-bottom:1px solid #5a2a2a">
+  <strong>This page is missing its support files.</strong>
+  <code>index.html</code> needs <code>styles.css</code>, <code>app.js</code>, <code>zip.js</code>, <code>src/</code> and
+  <code>vendor/</code> next to it. Use the single-file build
+  <code>standalone/music-cleanup-studio.html</code> instead — it has everything inside and works offline.
+</div>
+<script>
+  window.addEventListener('load', function () {
+    if (!window.__APP_READY__) {
+      var b = document.getElementById('bootfail');
+      if (b) b.hidden = false;
+    }
+  });
+</script>
+
+<div class="app">
+
+  <!-- ═══════════════ header ═══════════════ -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M3 21c3.2 0 3.2-9 6.4-9s3.2 11 6.4 11 3.2-13 6.4-13 3.2 7 6.8 7" />
+      </svg>
+      <div>
+        <h1>Music Cleanup Studio</h1>
+        <p>Removes broadband static from AI-generated music · keeps your original sample rate</p>
+      </div>
+    </div>
+    <div class="badges">
+      <span class="badge ok">● 100% on-device</span>
+      <span class="badge">v1.0</span>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- ═══════════════ left: files ═══════════════ -->
+    <section class="col main-col">
+      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Add audio files">
+        <input id="fileinput" type="file" accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aiff,.aif" multiple hidden />
+        <svg viewBox="0 0 24 24" class="dz-icon" aria-hidden="true">
+          <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+        </svg>
+        <div class="dz-title">Drop WAV / MP3 / FLAC files here</div>
+        <div class="dz-sub">or <button class="linklike" id="browseBtn" type="button">browse your computer</button> · batch upload supported · nothing is uploaded</div>
+      </div>
+
+      <div class="toolbar">
+        <button id="processBtn" class="btn primary" disabled>
+          <svg viewBox="0 0 24 24" class="i"><path d="M8 5v14l11-7z"/></svg> Process all
+        </button>
+        <button id="stopBtn" class="btn" disabled>
+          <svg viewBox="0 0 24 24" class="i"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> Stop
+        </button>
+        <span class="spacer"></span>
+        <label class="chk"><input type="checkbox" id="autoplayChk" checked /> <span>Auto-select result</span></label>
+        <button id="clearBtn" class="btn ghost" disabled>Clear</button>
+      </div>
+
+      <div id="trackList" class="track-list"></div>
+      <div id="emptyState" class="empty">No tracks yet. Add audio files above to begin.</div>
+
+      <div class="log" id="log" aria-live="polite"></div>
+    </section>
+
+    <!-- ═══════════════ right: settings ═══════════════ -->
+    <aside class="col side-col">
+      <div class="card">
+        <div class="card-head">
+          <h2>Cleanup</h2>
+          <div class="presets" role="group" aria-label="Presets">
+            <button class="chip" data-preset="light">Light</button>
+            <button class="chip active" data-preset="balanced">Balanced</button>
+            <button class="chip" data-preset="strong">Strong</button>
+            <button class="chip" data-preset="surgical">Surgical</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="strength">Strength <output id="strengthOut">60%</output></label>
+          <input type="range" id="strength" min="0" max="100" value="60" step="1" />
+          <p class="hint">How hard the static is pushed down. Higher removes more but can dull the top end.</p>
+        </div>
+
+        <div class="field">
+          <label for="profilePct">Noise profile <output id="profilePctOut">quietest 12%</output></label>
+          <input type="range" id="profilePct" min="4" max="35" value="12" step="1" />
+          <p class="hint">Which frames are sampled as “noise only”. Raise it if your track has few silent gaps.</p>
+        </div>
+
+        <div class="two">
+          <div class="field">
+            <label for="maxReduction">Max cut <output id="maxReductionOut">12 dB</output></label>
+            <input type="range" id="maxReduction" min="3" max="24" value="12" step="1" />
+          </div>
+          <div class="field">
+            <label for="temporalSmooth">Smoothing <output id="temporalSmoothOut">0.50</output></label>
+            <input type="range" id="temporalSmooth" min="0" max="0.9" value="0.5" step="0.05" />
+          </div>
+        </div>
+
+        <details class="advanced">
+          <summary>Advanced</summary>
+          <div class="two">
+            <div class="field">
+              <label for="fftSize">FFT size</label>
+              <select id="fftSize">
+                <option value="1024">1024 · fast</option>
+                <option value="2048" selected>2048 · default</option>
+                <option value="4096">4096 · precise</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="maxBoost">Master boost</label>
+              <select id="maxBoost">
+                <option value="0">0 dB · none</option>
+                <option value="4" selected>4 dB · safe</option>
+                <option value="8">8 dB · loud</option>
+              </select>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Master</h2>
+          <label class="switch"><input type="checkbox" id="masterOn" checked /><span></span></label>
+        </div>
+        <p class="hint tight">Rumble filter, air shelf, glue compression and a −1 dBFS ceiling.</p>
+        <div class="two">
+          <div class="field">
+            <label for="airDb">Air <output id="airDbOut">+2 dB</output></label>
+            <input type="range" id="airDb" min="-4" max="6" value="2" step="1" />
+          </div>
+          <div class="field">
+            <label for="ceiling">Ceiling <output id="ceilingOut">−1.0</output></label>
+            <input type="range" id="ceiling" min="-6" max="-0.1" value="-1" step="0.1" />
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="compThr">Glue threshold <output id="compThrOut">−20 dB</output></label>
+            <input type="range" id="compThr" min="-40" max="-6" value="-20" step="1" />
+          </div>
+          <div class="field">
+            <label for="compRatio">Ratio <output id="compRatioOut">1.8:1</output></label>
+            <input type="range" id="compRatio" min="1" max="4" value="1.8" step="0.1" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Export</h2></div>
+        <div class="field">
+          <label for="outFormat">Format</label>
+          <select id="outFormat">
+            <option value="wav24" selected>WAV 24-bit (best)</option>
+            <option value="wav16">WAV 16-bit (CD)</option>
+            <option value="mp3-320">MP3 320 kbps</option>
+            <option value="mp3-192">MP3 192 kbps</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Save</label>
+          <div class="segmented" id="saveMode">
+            <button class="seg active" data-mode="both">Clean + Mastered</button>
+            <button class="seg" data-mode="clean">Clean only</button>
+            <button class="seg" data-mode="master">Mastered only</button>
+          </div>
+        </div>
+        <button id="downloadAllBtn" class="btn full" disabled>
+          <svg viewBox="0 0 24 24" class="i"><path d="M12 4v11m0 0l4-4m-4 4l-4-4M5 19h14"/></svg>
+          Download all (.zip)
+        </button>
+        <p class="hint tight" id="exportNote">Runs entirely on your device — no server, no upload queue.</p>
+      </div>
+
+      <div class="stat-box">
+        <div class="stat"><span id="statTracks">0</span><small>tracks</small></div>
+        <div class="stat"><span id="statReady">0</span><small>ready</small></div>
+        <div class="stat"><span id="statReduction">—</span><small>avg cut</small></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ═══════════════ transport ═══════════════ -->
+  <div class="transport" id="transport">
+    <div class="tp-left">
+      <button id="playBtn" class="play" disabled aria-label="Play / pause">
+        <svg viewBox="0 0 24 24" class="i play-icon"><path d="M8 5v14l11-7z"/></svg>
+        <svg viewBox="0 0 24 24" class="i pause-icon" hidden><rect x="7" y="5" width="4" height="14" rx="1"/><rect x="13" y="5" width="4" height="14" rx="1"/></svg>
+      </button>
+      <div class="tp-meta">
+        <div class="tp-title" id="tpTitle">Nothing loaded</div>
+        <div class="tp-sub" id="tpSub">Add a track, then Process</div>
+      </div>
+    </div>
+
+    <div class="tp-wave">
+      <canvas id="wave" height="64"></canvas>
+      <div class="playhead" id="playhead"></div>
+      <div class="tp-time" id="tpTime">0:00 / 0:00</div>
+    </div>
+
+    <div class="tp-right">
+      <div class="ab" role="group" aria-label="A/B source">
+        <button class="ab-btn active" data-src="clean">Clean</button>
+        <button class="ab-btn" data-src="orig">Original</button>
+        <button class="ab-btn" data-src="master">Master</button>
+        <button class="ab-btn" data-src="noise">Noise</button>
+      </div>
+      <input type="range" id="volume" min="0" max="1" step="0.01" value="0.9" aria-label="Volume" />
+      <span class="kbd-hint">Space = play · A/B = compare</span>
+    </div>
+  </div>
+</div>
+
+<script src="zip.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
