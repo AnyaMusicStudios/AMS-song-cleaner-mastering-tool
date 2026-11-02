@@ -1,4 +1,4 @@
-# (AMS) Song artifacts Cleanup Studio
+# (AMS) Song artifacts Cleanup Studio + optional mastering
 
 A working tool inspired from the idea behind `musiccleanerpro.musictechtools.xyz`: **strips the broadband
 static/hiss out of AI-generated music or normal songs in the browser, then save the Clean and/or Mastered file.**
