@@ -1,7 +1,7 @@
-# Music Cleanup Studio
+# (AMS) Song artifacts Cleanup Studio
 
-A working clone of the idea behind `musiccleanerpro.musictechtools.xyz`: **strip the broadband
-static/hiss out of AI-generated music in the browser, then save the Clean and/or Mastered file.**
+A working tool inspired from the idea behind `musiccleanerpro.musictechtools.xyz`: **strips the broadband
+static/hiss out of AI-generated music or normal songs in the browser, then save the Clean and/or Mastered file.**
 
 Everything runs on the device. No uploads, no server, no account, no paywall.
 
@@ -146,3 +146,6 @@ The original gates the tool behind 5-day / 30-day / lifetime passes via Stripe. 
 **not** in here. If you go that route, keep the DSP client-side and put only the entitlement check
 on a server (Stripe Checkout → webhook → signed licence token in localStorage) — otherwise you turn
 a zero-cost static site into something you have to host and police.
+
+## developed by Anya Music Studios
+## powered by scutariu.engineering
